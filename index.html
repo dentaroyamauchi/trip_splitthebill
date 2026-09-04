@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROUTE SPLIT | ドライブ旅行 精算ツール</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap');
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: #FFFFFF;
+    font-family: 'Inter', sans-serif;
+  }
+  body { padding: 24px 16px 60px; }
+  .container { max-width: 720px; margin: 0 auto; }
+
+  input::placeholder { color: #9CA7AD; }
+  .rs-input, select.rs-input {
+    background: #F4F2EC;
+    border: 1px solid #DCD7CC;
+    color: #1B1E22;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+    width: 100%;
+  }
+  .rs-input:focus { border-color: #2C6B4A; }
+  .rs-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: #2C6B4A; color: #FFFFFF; border: none; border-radius: 6px;
+    padding: 10px 16px; font-family: 'Inter', sans-serif; font-weight: 600;
+    font-size: 14px; cursor: pointer; transition: filter 0.15s ease;
+  }
+  .rs-btn:hover { filter: brightness(1.1); }
+  .rs-btn:active { filter: brightness(0.95); }
+  .rs-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .rs-btn.yellow { background: #F4C43A; color: #1B1E22; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #F4F2EC; border: 1px solid #DCD7CC; border-radius: 999px;
+    padding: 6px 10px 6px 12px; font-family: 'Inter', sans-serif; font-size: 13px;
+    color: #1B1E22;
+  }
+  .chip button { background: none; border: none; color: #8FA3AD; cursor: pointer; padding: 2px; display:flex; }
+  .chip button:hover { color: #E0653F; }
+
+  .cat-toggle {
+    display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+    border-radius: 6px; border: 1px solid #DCD7CC; background: #F4F2EC;
+    font-family: 'Inter', sans-serif; font-size: 13px; cursor: pointer; color: #6B7580;
+  }
+  .cat-toggle .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .cat-toggle.active { color: #1B1E22; }
+
+  .participant-pill {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    border-radius: 999px; border: 1px solid #DCD7CC; background: #F4F2EC;
+    font-family: 'Inter', sans-serif; font-size: 13px; cursor: pointer; color: #6B7580;
+    user-select: none;
+  }
+  .participant-pill.on { background: #F4C43A; border-color: #F4C43A; color: #1B1E22; font-weight: 600; }
+
+  .lane-divider {
+    height: 2px; background-image: repeating-linear-gradient(90deg, #F4C43A 0 18px, transparent 18px 32px);
+    margin: 28px 0; opacity: 0.7;
+  }
+
+  .receipt {
+    position: relative; background: #F4F2EC; color: #1B1E22; border-radius: 4px;
+    padding: 18px 18px 22px; font-family: 'Inter', sans-serif;
+    box-shadow: 0 1px 3px rgba(27,30,34,0.12);
+  }
+  .receipt::before, .receipt::after {
+    content: ""; position: absolute; bottom: -8px; left: 0; right: 0; height: 16px;
+    background-image: radial-gradient(circle at 8px 0, transparent 8px, #F4F2EC 8.5px);
+    background-size: 16px 16px; background-repeat: repeat-x;
+  }
+
+  .expense-row:hover .del-btn { opacity: 1; }
+  .del-btn { opacity: 0; transition: opacity .15s ease; background:none; border:none; color:#E0653F; cursor:pointer; }
+
+  .sign {
+    background: #2C6B4A; border: 3px solid #FFFFFF; border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 28px; box-shadow: 0 2px 10px rgba(27,30,34,0.18);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sign-title { font-family: 'Oswald', sans-serif; font-size: 26px; letter-spacing: 2px; color: #FFFFFF; line-height: 1.1; }
+  .sign-sub { font-family: 'Inter', sans-serif; font-size: 12px; color: #D7E8DD; margin-top: 2px; }
+
+  h2.section-title {
+    font-family: 'Oswald', sans-serif; font-size: 15px; letter-spacing: 0.5px;
+    color: #1B1E22; margin: 0 0 12px; font-weight: 500; display: flex; align-items: center; gap: 6px;
+  }
+  section { margin-bottom: 4px; }
+  .hint { color: #7C8A93; font-size: 12px; font-family: 'Inter', sans-serif; margin-bottom: 6px; }
+  .empty { color: #7C8A93; font-size: 13px; font-family: 'Inter', sans-serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="sign">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EDEAE2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <div>
+        <div class="sign-title">ROUTE SPLIT</div>
+        <div class="sign-sub">ドライブ旅行 精算ツール</div>
+      </div>
+    </div>
+
+    <!-- Members -->
+    <section>
+      <h2 class="section-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1B1E22" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        メンバー
+      </h2>
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <input class="rs-input" id="memberInput" placeholder="名前を入力">
+        <button class="rs-btn yellow" id="addMemberBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          追加
+        </button>
+      </div>
+      <div id="memberChips" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+
+      <div id="remainderWrap" style="margin-top:14px; display:none;">
+        <div class="hint">端数（割り切れない分）は誰が負担する？</div>
+        <select class="rs-input" id="remainderSelect" style="max-width:260px;">
+          <option value="">自動で調整（順番に1円ずつ）</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="lane-divider"></div>
+
+    <!-- Add expense -->
+    <section>
+      <h2 class="section-title">支出を追加</h2>
+      <div id="catToggles" style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;"></div>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <input class="rs-input" id="expenseName" placeholder="内容（例：〇〇SAで給油）" style="flex:2;">
+        <input class="rs-input" id="expenseAmount" placeholder="金額" type="number" style="flex:1;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <div class="hint">この支出を割り勘する人（タップで切替）</div>
+        <div id="participantPills" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+      </div>
+      <button class="rs-btn" id="addExpenseBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        支出を記録
+      </button>
+    </section>
+
+    <!-- Expense list -->
+    <section id="expenseListSection" style="display:none;">
+      <h2 class="section-title">支出一覧</h2>
+      <div id="expenseList" style="display:flex; flex-direction:column; gap:6px;"></div>
+      <div style="text-align:right; margin-top:10px; font-size:13px; color:#5A646C;">
+        旅行合計　<span class="mono" id="totalTrip" style="font-size:16px; color:#F4C43A; font-weight:700;">¥0</span>
+      </div>
+    </section>
+
+    <div class="lane-divider"></div>
+
+    <!-- Results -->
+    <section>
+      <h2 class="section-title">精算結果</h2>
+      <div id="resultsEmpty" class="empty">メンバーと支出を登録すると、ここに1人あたりの金額が表示されます。</div>
+      <div id="resultsGrid" style="display:none; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:24px; padding-bottom:10px;"></div>
+    </section>
+  </div>
+
+<script>
+  const CATS = {
+    gas:   { label: "ガソリン代",   color: "#F4C43A" },
+    toll:  { label: "高速道路代",   color: "#3A9D6E" },
+    meal:  { label: "食事代",       color: "#E0653F" },
+    other: { label: "その他",       color: "#8FA3AD" },
+  };
+
+  let members = [];
+  let expenses = [];
+  let remainderBearerId = "";
+  let form = { category: "gas", participants: [] };
+  const uid = () => Math.random().toString(36).slice(2, 9);
+
+  // ---------- persistence (autosave via browser localStorage, single trip) ----------
+  const STORAGE_KEY = "route-split-trip";
+
+  function loadTrip() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        members = data.members || [];
+        expenses = data.expenses || [];
+        remainderBearerId = data.remainderBearerId || "";
+        form.participants = members.map(m => m.id);
+      }
+    } catch (e) {
+      // no saved trip yet — start fresh
+    }
+    render();
+  }
+
+  function saveTrip() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ members, expenses, remainderBearerId }));
+    } catch (e) {
+      console.error("保存に失敗しました", e);
+    }
+  }
+
+  // ---------- member actions ----------
+  function addMember() {
+    const input = document.getElementById("memberInput");
+    const name = input.value.trim();
+    if (!name) return;
+    const m = { id: uid(), name };
+    members.push(m);
+    form.participants.push(m.id);
+    input.value = "";
+    saveTrip(); render();
+  }
+
+  function removeMember(id) {
+    members = members.filter(m => m.id !== id);
+    expenses.forEach(e => { e.participants = e.participants.filter(p => p !== id); });
+    form.participants = form.participants.filter(p => p !== id);
+    if (remainderBearerId === id) remainderBearerId = "";
+    saveTrip(); render();
+  }
+
+  function setRemainderBearer(id) {
+    remainderBearerId = id;
+    saveTrip(); render();
+  }
+
+  // ---------- expense form actions ----------
+  function setCategory(key) {
+    form.category = key;
+    render();
+  }
+
+  function toggleFormParticipant(id) {
+    form.participants = form.participants.includes(id)
+      ? form.participants.filter(p => p !== id)
+      : [...form.participants, id];
+    render();
+  }
+
+  function addExpense() {
+    const nameEl = document.getElementById("expenseName");
+    const amtEl = document.getElementById("expenseAmount");
+    const name = nameEl.value.trim();
+    const amt = parseFloat(amtEl.value);
+    if (!name || !amt || amt <= 0 || form.participants.length === 0) return;
+    expenses.push({ id: uid(), name, amount: amt, category: form.category, participants: [...form.participants] });
+    nameEl.value = ""; amtEl.value = "";
+    saveTrip(); render();
+  }
+
+  function removeExpense(id) {
+    expenses = expenses.filter(e => e.id !== id);
+    saveTrip(); render();
+  }
+
+  // ---------- split calculation ----------
+  // Equal split per expense. Leftover yen from rounding goes entirely to the
+  // designated remainder-bearer (if part of this expense); otherwise it's
+  // spread one yen at a time to the first participants, so totals stay exact.
+  function splitExpense(e) {
+    const parts = e.participants;
+    const n = parts.length || 1;
+    const base = Math.floor(e.amount / n);
+    let leftover = Math.round(e.amount - base * n);
+    const shares = {};
+    parts.forEach(id => shares[id] = base);
+    if (leftover > 0) {
+      if (remainderBearerId && parts.includes(remainderBearerId)) {
+        shares[remainderBearerId] += leftover;
+      } else {
+        for (let i = 0; i < leftover; i++) shares[parts[i % parts.length]] += 1;
+      }
+    }
+    return shares;
+  }
+
+  const yen = n => Math.round(n).toLocaleString("ja-JP", { maximumFractionDigits: 0 });
+
+  // ---------- render ----------
+  function render() {
+    // member chips
+    const chipsEl = document.getElementById("memberChips");
+    chipsEl.innerHTML = members.length
+      ? members.map(m => `
+          <span class="chip">
+            ${escapeHtml(m.name)}
+            <button onclick="removeMember('${m.id}')" aria-label="削除">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </span>`).join("")
+      : `<span class="empty">まずは旅行メンバーを追加してください</span>`;
+
+    // remainder bearer selector
+    const remainderWrap = document.getElementById("remainderWrap");
+    const remainderSelect = document.getElementById("remainderSelect");
+    if (members.length > 0) {
+      remainderWrap.style.display = "block";
+      remainderSelect.innerHTML = `<option value="">自動で調整（順番に1円ずつ）</option>` +
+        members.map(m => `<option value="${m.id}" ${remainderBearerId === m.id ? "selected" : ""}>${escapeHtml(m.name)}</option>`).join("");
+    } else {
+      remainderWrap.style.display = "none";
+    }
+
+    // category toggles
+    const catToggles = document.getElementById("catToggles");
+    catToggles.innerHTML = Object.entries(CATS).map(([key, c]) => {
+      const active = form.category === key;
+      return `<div class="cat-toggle ${active ? "active" : ""}" style="${active ? `border:1px solid ${c.color}; background:${c.color};` : `border:1px solid #DCD7CC;`}" onclick="setCategory('${key}')">
+                <span class="dot" style="background:${c.color}"></span>${c.label}
+              </div>`;
+    }).join("");
+
+    // participant pills (expense form)
+    const pillsEl = document.getElementById("participantPills");
+    pillsEl.innerHTML = members.length
+      ? members.map(m => {
+          const on = form.participants.includes(m.id);
+          return `<div class="participant-pill ${on ? "on" : ""}" onclick="toggleFormParticipant('${m.id}')">${escapeHtml(m.name)}</div>`;
+        }).join("")
+      : `<span class="empty">メンバーを先に追加してください</span>`;
+
+    document.getElementById("addExpenseBtn").disabled = members.length === 0;
+
+    // expense list
+    const listSection = document.getElementById("expenseListSection");
+    const listEl = document.getElementById("expenseList");
+    if (expenses.length > 0) {
+      listSection.style.display = "block";
+      listEl.innerHTML = expenses.map(e => {
+        const c = CATS[e.category];
+        return `<div class="expense-row" style="display:flex; align-items:center; justify-content:space-between; background:#F4F2EC; border:1px solid #DCD7CC; border-radius:6px; padding:10px 12px;">
+          <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+            <span class="dot" style="width:10px;height:10px;border-radius:50%;background:${c.color};flex-shrink:0;"></span>
+            <div style="min-width:0;">
+              <div style="font-size:14px; color:#1B1E22; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(e.name)}</div>
+              <div style="font-size:11px; color:#7C8A93;">${e.participants.length}人で割り勘</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+            <span class="mono" style="font-size:14px; color:#1B1E22;">¥${yen(e.amount)}</span>
+            <button class="del-btn" onclick="removeExpense('${e.id}')" aria-label="削除">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>`;
+      }).join("");
+      const totalTrip = expenses.reduce((s, e) => s + e.amount, 0);
+      document.getElementById("totalTrip").textContent = `¥${yen(totalTrip)}`;
+    } else {
+      listSection.style.display = "none";
+    }
+
+    // results
+    const resultsEmpty = document.getElementById("resultsEmpty");
+    const resultsGrid = document.getElementById("resultsGrid");
+    if (members.length === 0) {
+      resultsEmpty.style.display = "block";
+      resultsGrid.style.display = "none";
+    } else {
+      resultsEmpty.style.display = "none";
+      resultsGrid.style.display = "grid";
+      const perPerson = members.map(m => {
+        let total = 0;
+        const byCat = { gas: 0, toll: 0, meal: 0, other: 0 };
+        expenses.forEach(e => {
+          if (e.participants.includes(m.id) && e.participants.length > 0) {
+            const shares = splitExpense(e);
+            const share = shares[m.id] || 0;
+            total += share;
+            byCat[e.category] += share;
+          }
+        });
+        return { ...m, total, byCat };
+      });
+      resultsGrid.innerHTML = perPerson.map(p => `
+        <div class="receipt">
+          <div style="font-family:'Oswald',sans-serif; font-size:15px; letter-spacing:1px; text-transform:uppercase; margin-bottom:2px;">${escapeHtml(p.name)}</div>
+          <div style="font-size:10px; color:#6B7580; margin-bottom:10px;">TOLL &amp; TRIP RECEIPT</div>
+          <div style="border-top:1px dashed #B9B4A6; padding-top:8px; display:flex; flex-direction:column; gap:4px;">
+            ${Object.entries(CATS).map(([key, c]) => p.byCat[key] > 0 ? `
+              <div style="display:flex; justify-content:space-between; font-size:12px; color:#3A3D40;">
+                <span>${c.label}</span><span class="mono">¥${yen(p.byCat[key])}</span>
+              </div>` : "").join("")}
+          </div>
+          <div style="border-top:1px dashed #B9B4A6; margin-top:8px; padding-top:8px; display:flex; justify-content:space-between; align-items:baseline;">
+            <span style="font-size:12px; color:#3A3D40;">合計</span>
+            <span class="mono" style="font-size:20px; font-weight:700;">¥${yen(p.total)}</span>
+          </div>
+        </div>`).join("");
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---------- wire up static controls ----------
+  document.getElementById("addMemberBtn").addEventListener("click", addMember);
+  document.getElementById("memberInput").addEventListener("keydown", e => { if (e.key === "Enter") addMember(); });
+  document.getElementById("addExpenseBtn").addEventListener("click", addExpense);
+  document.getElementById("remainderSelect").addEventListener("change", e => setRemainderBearer(e.target.value));
+
+  loadTrip();
+</script>
+</body>
+</html>
